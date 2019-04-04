@@ -1,11 +1,7 @@
 ﻿using GalaSoft.MvvmLight;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Management;
 using System.Dynamic;
 using GalaSoft.MvvmLight.CommandWpf;
@@ -45,7 +41,7 @@ namespace TaskManager
                 {
                     
                 }
-                newTask.Memory = (Convert.ToDouble(t.PrivateMemorySize64) / 1024).ToString() + " K";
+                newTask.Memory = (Convert.ToDouble(t.PrivateMemorySize64) / 1024) + " K";
                 TaskList.Add(newTask);
             }
 
@@ -62,10 +58,11 @@ namespace TaskManager
             response.Description = "";
             response.Username = "Unknown";
 
-            foreach (ManagementObject obj in processList)
+            foreach (var o in processList)
             {
-                
-                var argList = new string[] { string.Empty, string.Empty };
+                var obj = (ManagementObject) o;
+
+                object[] argList = { string.Empty, string.Empty };
                 var returnVal = Convert.ToInt32(obj.InvokeMethod("GetOwner", argList));
                 if (returnVal == 0)
                 {
@@ -79,6 +76,44 @@ namespace TaskManager
             return "N/A";
         }
 
-       
+        private RelayCommand _endTaskCommand;
+        public RelayCommand EndTaskCommand =>
+            _endTaskCommand ?? (_endTaskCommand = new RelayCommand(
+                () =>
+                {
+                    var request = Process.GetProcessById(SelectedItem.PID);
+                    request.Kill();
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        TaskList.Remove(SelectedItem);
+                    });
+                    SelectedItem = null;
+                }
+            ));
+
+        private RelayCommand _startTaskCommand;
+        public RelayCommand StartTaskCommand =>
+            _startTaskCommand ?? (_startTaskCommand = new RelayCommand(
+                () =>
+                {
+                    if (!String.IsNullOrEmpty(NewTaskRequest))
+                    {
+                        Process.Start(NewTaskRequest);
+                        var request = Process.GetProcessesByName(NewTaskRequest);
+                        NewTaskRequest = "";
+                        if (request != null)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                TaskList.Add(SelectedItem);
+                            });
+                        }
+                    }
+                    else
+                        MessageBox.Show("Check the task name");
+                    SelectedItem = null;
+                }
+            ));
+    }
 
 }
